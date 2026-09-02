@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model livestream {
+  id                  String            @id @default(cuid())
+  sessionName         String
+  sessionDescription  String
+  selectedTags        Json
+  category            StreamCategory
+  genre               StreamGenre
+  thumbnailUrl        String?
+  interactionsEnabled Boolean           @default(true)
+  status              livestream_status
+  scheduleDate        DateTime?
+  startedAt           DateTime?
+  peakViewerCount     Int               @default(0)
+  totalViewCount      Int               @default(0)
+  donationEnabled     Boolean           @default(false)
+  donationBankName    String?
+  donationAccountName String?
+  donationAccountNumber String?
+  userId              String
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @default(now())
+  lastSeenAt          DateTime?
+  endedAt             DateTime?
+  user                user              @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Livestream_userId_fkey")
+  comments            Comment[]
+
+
+  @@index([userId], map: "Livestream_userId_fkey")
+  @@index([category])
+  @@index([genre])
+  @@index([startedAt])
+}
+
+model user {
+  id         String       @id @default(cuid())
+  firstName  String
+  lastName   String
+  email      String       @unique(map: "User_email_key")
+  password   String?
+  bio        String?
+  avatarUrl  String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  livestream livestream[]
+  comments   Comment[]
+  reports    Report[]
+
+  following  Follow[]     @relation("Follower")
+  followers  Follow[]     @relation("Following")
+
+}
+
+enum livestream_status {
+  LIVE
+  SCHEDULED
+  ENDED
+}
+
+enum StreamCategory {
+  Music
+  Ministry
+  Teaching
+  Discussion
+  Prayer
+  Gospel
+  Other
+}
+
+enum StreamGenre {
+  Ministering
+  Worship
+  Prayer
+  BibleStudy
+  Teaching
+  Testimony
+  GospelMusic
+  Evangelism
+  Fellowship
+  Other
+}
+
+model Comment {
+  id           String     @id @default(cuid())
+  text         String
+  userId       String
+  livestreamId String
+  user         user       @relation(fields: [userId], references: [id])
+  livestream   livestream @relation(fields: [livestreamId], references: [id])
+  createdAt    DateTime   @default(now())
+  deletedAt    DateTime?
+
+  @@index([livestreamId])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  user @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following user @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+}
+
+enum ReportTargetType {
+  LIVESTREAM
+  COMMENT
+}
+
+model Report {
+  id         String           @id @default(cuid())
+  reporterId String
+  targetType ReportTargetType
+  targetId   String
+  reason     String
+  createdAt  DateTime         @default(now())
+
+  reporter user @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId])
+}
