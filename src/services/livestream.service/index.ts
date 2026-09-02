@@ -1,5 +1,5 @@
-export { listActiveLivestreams } from "./list-active-livestreams";
 export { getActiveLivestreamForUser } from "./get-active-livestream-for-user";
+export { getLivestreamOwnerId } from "./get-livestream-owner-id";
 export { createLivestream } from "./create-livestream";
 export { endLivestream } from "./end-livestream";
 export { recordHeartbeat } from "./record-heartbeat";

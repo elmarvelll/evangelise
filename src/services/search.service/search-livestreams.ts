@@ -1,48 +1,54 @@
+import type { StreamCategory, StreamGenre } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 50;
+
+export type SearchLivestreamsParams = {
+  search?: string;
+  category?: StreamCategory;
+  genre?: StreamGenre;
+  cursor?: string;
+  limit?: number;
+};
+
 /**
- * Searches currently-LIVE streams by session name/description text and
- * by tag. Both `query` and `filters` are optional; when both are empty
- * the caller should skip calling this (see `search.controller.ts`) —
- * an unfiltered scan of all live streams is never a useful "search".
+ * The single query behind `GET /api/livestreams`: the plain "all live
+ * streams" feed (no params) and every search/filter combination
+ * (`search`, `category`, `genre`, independently or combined) are the
+ * same database query with optional `AND` clauses — there's no separate
+ * "list" query to keep in sync with the "search" query.
+ *
+ * Always queries the database directly (no in-memory filtering of a
+ * full table scan) and always paginates via `take`/cursor — never
+ * returns an unbounded result set.
  */
-export async function searchLivestreams(query: string, filters: string[]) {
+export async function searchLivestreams(params: SearchLivestreamsParams) {
+  const search = params.search?.trim();
+  const take = Math.min(Math.max(params.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
+
   const livestreams = await prisma.livestream.findMany({
     where: {
       AND: [
         { status: "LIVE" },
-        ...(query
+        ...(search
           ? [
               {
                 OR: [
-                  { sessionName: { contains: query } },
-                  { sessionDescription: { contains: query } },
+                  { sessionName: { contains: search } },
+                  { sessionDescription: { contains: search } },
                 ],
               },
             ]
           : []),
-
-        // Christian tag filters
-        ...(filters.length > 0
-          ? [
-              {
-                OR: filters.map((tag) => ({
-                  selectedTags: {
-                    array_contains: [tag],
-                  },
-                })),
-              },
-            ]
-          : []),
+        ...(params.category ? [{ category: params.category }] : []),
+        ...(params.genre ? [{ genre: params.genre }] : []),
       ],
     },
 
     include: {
       user: {
-        select: {
-          firstName: true,
-          lastName: true,
-        },
+        select: { firstName: true, lastName: true },
       },
     },
 
@@ -50,15 +56,34 @@ export async function searchLivestreams(query: string, filters: string[]) {
       createdAt: "desc",
     },
 
-    take: 20,
+    take: take + 1,
+    ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
   });
 
-  return livestreams.map((stream) => ({
-    id: stream.id,
-    type: "livestream",
-    name: `${stream.user.firstName} ${stream.user.lastName}`,
-    title: stream.sessionName,
-    subtitle: stream.sessionDescription,
-    tags: Array.isArray(stream.selectedTags) ? stream.selectedTags : [],
-  }));
+  const hasMore = livestreams.length > take;
+  const page = hasMore ? livestreams.slice(0, take) : livestreams;
+
+  return {
+    livestreams: page.map((livestream) => ({
+      id: livestream.id,
+      userId: livestream.userId,
+      sessionName: livestream.sessionName,
+      sessionDescription: livestream.sessionDescription,
+      selectedTags: Array.isArray(livestream.selectedTags)
+        ? livestream.selectedTags.filter((tag): tag is string => typeof tag === "string")
+        : [],
+      category: livestream.category,
+      genre: livestream.genre,
+      status: livestream.status,
+      donationEnabled: livestream.donationEnabled,
+      donationBankName: livestream.donationBankName,
+      donationAccountName: livestream.donationAccountName,
+      donationAccountNumber: livestream.donationAccountNumber,
+      user: {
+        firstName: livestream.user.firstName,
+        lastName: livestream.user.lastName,
+      },
+    })),
+    nextCursor: hasMore ? page[page.length - 1].id : null,
+  };
 }

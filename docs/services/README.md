@@ -19,7 +19,10 @@ each folder's `index.ts` re-exports everything the domain exposes.
 | `livestream.service/` | Livestream CRUD, heartbeats, stale-stream cleanup |
 | `comment.service/` | Listing/creating comments |
 | `livekit.service/` | LiveKit token issuance, room lifecycle, webhook event handling (composes with `livestream.service/`) |
-| `search.service/` | Livestream search |
+| `search.service/` | Livestream search (text + category/genre + pagination) |
+| `follow.service/` | The follower system |
+| `viewer-stats.service/` | Current/peak/total viewer counts, streamer aggregate stats |
+| `report.service/` | Moderation reports |
 | `errors/` | Shared typed error classes services throw for expected failure cases |
 
 Inside a domain folder, **one function (or error class) per file**, named

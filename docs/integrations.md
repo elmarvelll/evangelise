@@ -66,10 +66,26 @@ are called. See [authentication.md](authentication.md).
 
 | Variable | Used by |
 |---|---|
-| `DATABASE_URL` | `src/lib/prisma.ts` (parsed into MariaDB adapter config) |
+| `DATABASE_URL` | `src/lib/prisma.ts` (passed to `@prisma/adapter-pg` as the Postgres connection string; a Supabase pooled connection uses port `6543` with `?pgbouncer=true`) |
 | `NEXTAUTH_SECRET`, `NEXTAUTH_URL` | NextAuth |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth provider |
 | `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | `livekit.service/` (server-side LiveKit SDK) |
 | `NEXT_PUBLIC_LIVEKIT_URL` | Browser LiveKit client connection |
 | `CRON_SECRET` | `GET /api/livekit/cleanup` auth |
-| `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | present in `.env` but not read anywhere in `src/` — `DATABASE_URL` alone drives the Prisma connection. Likely leftover from an earlier direct-`mysql2` setup (see the now-deleted `src/lib/mysql.ts`, noted in [architecture.md](architecture.md)). |
+| `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | present in `.env` but not read anywhere in `src/` — `DATABASE_URL` alone drives the Prisma connection. Likely leftover from an earlier direct-`mysql2` setup (see the now-deleted `src/lib/mysql.ts`, noted in [architecture.md](architecture.md)); their values are also stale MySQL-era placeholders now that the datasource is Postgres. |
+
+### Supabase connection: pooled vs. direct port
+
+Supabase exposes the same Postgres database on two ports through its
+connection pooler:
+
+- **`:6543`** — PgBouncer in *transaction* mode. This is what `DATABASE_URL`
+  in `.env` uses for the running app (with `?pgbouncer=true`, which Prisma
+  needs to avoid "prepared statement already exists" errors under
+  transaction-mode pooling).
+- **`:5432`** on the same pooler host — session mode, which supports the
+  session-level features (advisory locks, DDL) that `prisma db push` /
+  `prisma migrate` need. Running a migration against `:6543` hangs
+  indefinitely rather than failing outright — if a future `prisma migrate`/
+  `db push` seems stuck, that's almost certainly why; re-run it with
+  `DATABASE_URL` pointed at the same host on `:5432` instead.

@@ -35,30 +35,42 @@ required.
 ## Livestreams
 
 ### `GET /api/livestreams`
-- **Purpose**: Public feed of every currently-`LIVE` stream, newest first.
-  Powers the home dashboard.
+- **Purpose**: Public feed of currently-`LIVE` streams, newest first — and
+  the app's one search endpoint. See [../livestream/search.md](../livestream/search.md)
+  for the full parameter/pagination reference.
 - **Auth**: Public.
 - **Controller**: `listLivestreamsController` (`src/app/api/livestreams/route.controller.ts`)
-- **Service**: `listActiveLivestreams` (`src/services/livestream.service/`)
-- **Response `200`**: `{ livestreams: Array<{ id, sessionName, sessionDescription, selectedTags: string[], status, user: { firstName, lastName } }> }`
-- **Errors**: `500` on database failure.
+- **Service**: `searchLivestreams` (`src/services/search.service/`)
+- **Params** (query string, all optional/combinable): `search`, `category`,
+  `genre`, `cursor`, `limit`
+- **Response `200`**: `{ livestreams: Array<{ id, userId, sessionName, sessionDescription, selectedTags: string[], category, genre, status, donationEnabled, donationBankName, donationAccountName, donationAccountNumber, user: { firstName, lastName } }>, nextCursor: string | null }`
+- **Errors**: `400` invalid `category`/`genre` value, `500` on database failure.
+
+### `GET /api/livestreams/[id]/activity`
+- **Purpose**: Server-Sent Events stream of a streamer's own realtime
+  activity (follows, viewers joining/leaving, stream start/end). See
+  [../livestream/realtime-events.md](../livestream/realtime-events.md).
+- **Auth**: Required, and the caller must own the livestream.
+- **Controller**: `activityStreamController` (`src/app/api/livestreams/[id]/activity/route.controller.ts`)
+- **Errors**: `401` no session or not the owner, `404` livestream not found.
 
 ### `GET /api/livestreams/active`
 - **Purpose**: The signed-in user's own active (`LIVE`) stream, if any —
   used to restore the broadcaster dashboard after a page refresh.
 - **Auth**: Required.
 - **Controller**: `getActiveLivestreamController` (`src/app/api/livestreams/active/route.controller.ts`)
-- **Service**: `getActiveLivestreamForUser` (`src/services/livestream.service/`)
-- **Response `200`**: `{ isLive: true, livestream: { id, status, createdAt } }` or `{ isLive: false, livestream: null }`
+- **Service**: `getActiveLivestreamForUser` + `getLiveViewerCount` (`src/services/livestream.service/`, `src/services/viewer-stats.service/`)
+- **Response `200`**: `{ isLive: true, livestream: { id, status, createdAt, currentViewerCount } }` or `{ isLive: false, livestream: null }`
 - **Errors**: `401` no session, `500` unexpected failure.
 
 ### `GET /api/livestreams/comments/[streamId]`
 - **Purpose**: List a stream's comments, oldest first, with a human-readable
-  relative time (`"Just now"`, `"5m ago"`, …).
+  relative time (`"Just now"`, `"5m ago"`, …). Soft-deleted comments are
+  excluded.
 - **Auth**: Public.
 - **Controller**: `listCommentsController` (`src/app/api/livestreams/comments/[streamId]/route.controller.ts`)
 - **Service**: `listCommentsForStream` (`src/services/comment.service/`)
-- **Response `200`**: `Array<{ id, name, text, time }>`
+- **Response `200`**: `Array<{ id, userId, name, text, time }>`
 - **Errors**: `500` on database failure.
 
 ### `POST /api/livestreams/comments/[streamId]`
@@ -67,16 +79,78 @@ required.
 - **Controller**: `createCommentController` (same file as above)
 - **Service**: `createComment` (`src/services/comment.service/`)
 - **Body**: `{ text: string }`
-- **Response `201`**: `{ id, name, text, time: "Just now" }`
+- **Response `201`**: `{ id, userId, name, text, time: "Just now" }`
 - **Errors**:
   - `401` no session.
   - `400` empty comment, or over 500 characters.
   - `404` livestream doesn't exist.
+  - `429` more than 5 comments in 10 seconds from this user.
   - `500` unexpected failure.
 - **Note**: the frontend (`useSendComment`) also re-broadcasts the created
   comment over the LiveKit data channel so viewers in the room see it
   instantly, in addition to it being persisted here. See
   [../flows/post-comment.md](../flows/post-comment.md).
+
+### `DELETE /api/livestreams/comments/[streamId]/[commentId]`
+- **Purpose**: Basic moderation — soft-deletes a comment (sets `deletedAt`,
+  never removes the row). See [../livestream/moderation.md](../livestream/moderation.md).
+- **Auth**: Required, and the caller must be either the comment's author or
+  the livestream's owner.
+- **Controller**: `deleteCommentController` (`src/app/api/livestreams/comments/[streamId]/[commentId]/route.controller.ts`)
+- **Service**: `deleteComment` (`src/services/comment.service/`)
+- **Response `200`**: `{ success: true }`
+- **Errors**: `401` no session or not author/owner, `404` comment not found (or already deleted).
+
+---
+
+## Users
+
+### `POST /api/users/[userId]/follow`
+- **Purpose**: Follow the streamer at `userId`.
+- **Auth**: Required — follower identity is the session's own id, never a
+  client-supplied value.
+- **Controller**: `followController` (`src/app/api/users/[userId]/follow/route.controller.ts`)
+- **Service**: `followUser` (`src/services/follow.service/`)
+- **Response `201`**: `{ success: true }`
+- **Errors**: `400` self-follow or target doesn't exist, `409` already following.
+
+### `DELETE /api/users/[userId]/follow`
+- **Purpose**: Unfollow. Idempotent.
+- **Auth**: Required.
+- **Controller**: `unfollowController` (same file as above)
+- **Service**: `unfollowUser` (`src/services/follow.service/`)
+- **Response `200`**: `{ success: true }`
+
+### `GET /api/users/[userId]/follow-status`
+- **Purpose**: Follower count and (for a signed-in caller) whether they
+  follow this user.
+- **Auth**: Public.
+- **Controller**: `followStatusController` (`src/app/api/users/[userId]/follow-status/route.controller.ts`)
+- **Service**: `getFollowerCount`, `isFollowing` (`src/services/follow.service/`)
+- **Response `200`**: `{ followerCount, isFollowing }`
+
+### `GET /api/users/[userId]/stats`
+- **Purpose**: A streamer's own aggregate stats.
+- **Auth**: Required, and `userId` must match the caller — private to the
+  streamer themselves.
+- **Controller**: `streamerStatsController` (`src/app/api/users/[userId]/stats/route.controller.ts`)
+- **Service**: `getStreamerOverview` (`src/services/viewer-stats.service/`)
+- **Response `200`**: `{ followerCount, totalStreams, lifetimeViews, allTimePeakViewers }`
+- **Errors**: `401` no session or viewing someone else's stats.
+
+---
+
+## Moderation
+
+### `POST /api/reports`
+- **Purpose**: Report a livestream or comment for later human review — no
+  admin UI acts on these in this MVP. See [../livestream/moderation.md](../livestream/moderation.md).
+- **Auth**: Required.
+- **Controller**: `createReportController` (`src/app/api/reports/route.controller.ts`)
+- **Service**: `createReport` (`src/services/report.service/`)
+- **Body**: `{ targetType: "LIVESTREAM" | "COMMENT", targetId: string, reason: string }`
+- **Response `201`**: `{ success: true }`
+- **Errors**: `400` invalid `targetType`, missing `targetId`, or missing/too-long `reason`.
 
 ---
 
@@ -90,13 +164,14 @@ required.
 - **Controller**: `createBroadcastTokenController` (`src/app/api/livekit/token/route.controller.ts`)
 - **Service**: `createBroadcastSession` (`src/services/livekit.service/`),
   which calls `createLivestream` (`src/services/livestream.service/`)
-- **Body**: `{ sessionName, sessionDescription, selectedTags: string[] (1-3), interactionsEnabled?, streamMode?: "now"|"schedule", scheduleDate? }`
+- **Body**: `{ sessionName, sessionDescription, selectedTags: string[] (1-3), category: StreamCategory, genre: StreamGenre, interactionsEnabled?, streamMode?: "now"|"schedule", scheduleDate?, donationEnabled?, donationBankName?, donationAccountName?, donationAccountNumber? }`
 - **Response `200`**: `{ token, livestreamId, roomName, message }`
 - **Errors**:
   - `401` no session.
   - `400` missing/invalid `sessionName`/`sessionDescription`/`selectedTags`,
-    more than 3 tags, or an invalid `scheduleDate` when `streamMode` is
-    `"schedule"`.
+    more than 3 tags, invalid/missing `category` or `genre`, an invalid
+    `scheduleDate` when `streamMode` is `"schedule"`, or `donationEnabled:
+    true` with any of the three bank fields missing.
   - `500` LiveKit credentials missing from the environment, or unexpected
     failure.
 - ⚠️ See [architecture.md](../architecture.md#known-architectural-issues-found-during-this-audit)
@@ -182,20 +257,15 @@ required.
 
 ---
 
-## Search
+## Search (retired)
 
 ### `POST /api/search`
-- **Purpose**: Search currently-`LIVE` streams by text (session name/
-  description) and/or Christian topic tags.
-- **Auth**: Public.
-- **Controller**: `searchController` (`src/app/api/search/route.controller.ts`)
-- **Params** (query string, not body — see note in
-  [architecture.md](../architecture.md#known-architectural-issues-found-during-this-audit)):
-  `q` (free text), `filters` (comma-separated tag list)
-- **Service**: `searchLivestreams` (`src/services/search.service/`)
-- **Response `200`**: `Array<{ id, type: "livestream", name, title, subtitle, tags }>`
-  (empty array if both `q` and `filters` are empty — no unfiltered scan)
-- **Errors**: `500` on database failure.
+- **Status**: **Retired** — superseded by `GET /api/livestreams?search=&category=&genre=`
+  (see [../livestream/search.md](../livestream/search.md) and
+  [../decisions/livestream-decisions.md](../decisions/livestream-decisions.md#search-one-query-not-two)).
+  Always returns `410 Gone` with a message pointing at the replacement.
+  Kept (rather than deleted) only so an old/cached client gets a clear
+  signal instead of a broken 404.
 
 ---
 

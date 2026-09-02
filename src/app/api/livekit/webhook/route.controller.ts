@@ -1,9 +1,15 @@
 import { json, serverError, unauthorized } from "@/lib/http";
-import { handleParticipantLeft, verifyWebhookEvent } from "@/services/livekit.service";
+import {
+  handleParticipantJoined,
+  handleParticipantLeft,
+  verifyWebhookEvent,
+} from "@/services/livekit.service";
 
 /**
  * POST /api/livekit/webhook
- * Receives LiveKit room events (only `participant_left` is acted on).
+ * Receives LiveKit room events. `participant_joined` and
+ * `participant_left` are acted on; everything else is acknowledged and
+ * ignored.
  */
 export async function livekitWebhookController(request: Request) {
   try {
@@ -18,7 +24,7 @@ export async function livekitWebhookController(request: Request) {
 
     console.log("🔔 LiveKit event:", event.event);
 
-    if (event.event !== "participant_left") {
+    if (event.event !== "participant_left" && event.event !== "participant_joined") {
       return json({ received: true });
     }
 
@@ -29,11 +35,13 @@ export async function livekitWebhookController(request: Request) {
       return json({ received: true });
     }
 
-    console.log("👋 Participant left");
-    console.log("Room:", roomName);
-    console.log("Participant:", participantIdentity);
-
-    await handleParticipantLeft(roomName, participantIdentity);
+    if (event.event === "participant_joined") {
+      console.log("👋 Participant joined:", participantIdentity, "in", roomName);
+      await handleParticipantJoined(roomName, participantIdentity);
+    } else {
+      console.log("👋 Participant left:", participantIdentity, "in", roomName);
+      await handleParticipantLeft(roomName, participantIdentity);
+    }
 
     return json({ received: true });
   } catch (error) {

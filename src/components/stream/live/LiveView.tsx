@@ -1,14 +1,20 @@
 // import { Eye, Heart, Mic, SendHorizontal, UserPlus, Users, Video } from "lucide-react"
-import { SendHorizontal } from "lucide-react"
+import { SendHorizontal, Trash2 } from "lucide-react"
 import InfoCard from "./InfoCard"
 // import StatCard from "./StatCard"
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import CameraPreview from "./Camerapreview";
 import LiveVideo from "./LiveVideo";
 import { useStream } from "../context/StreamContext";
 import { useLiveStream } from "@/components/home/Context/Home_context";
 import { useCommentListener } from "@/components/home/utils/comment_Setup";
 import { useSendComment } from "@/components/home/utils/comment_send";
+import { useActivityFeed } from "@/components/stream/utils/use-activity-feed";
+import { useStreamerStats } from "@/components/stream/utils/use-streamer-stats";
+import { ActivityFeedPanel } from "@/components/stream/activity-feed-panel";
+import { StatsPanel } from "@/components/stream/stats-panel";
+import api from "@/lib/axios";
 import StreamControls from "./StreamControls";
 
 interface LiveViewProps {
@@ -18,9 +24,14 @@ interface LiveViewProps {
 
 export default function LiveView({ isLive }: LiveViewProps) {
     const { setStream, setAudioTrack, setVideoTrack } = useStream()
-    const { comments, roomId, room } = useLiveStream()
+    const { comments, setComments, roomId, room } = useLiveStream()
+    const { data: session } = useSession();
     useCommentListener();
     const { commentText, handleSubmit, setText } = useSendComment(roomId);
+    const { items: activityItems, liveViewerCount } = useActivityFeed(roomId, isLive);
+    const { overview, loading: statsLoading, error: statsError } = useStreamerStats(
+        session?.user?.id ?? null
+    );
     const [streamData, setStreamData] = useState<{
         sessionName?: string;
         sessionDescription?: string;
@@ -98,6 +109,17 @@ export default function LiveView({ isLive }: LiveViewProps) {
         };
     }, []);
 
+    async function handleDeleteComment(commentId: string) {
+        if (!roomId) return;
+
+        try {
+            await api.delete(`/livestreams/comments/${roomId}/${commentId}`);
+            setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+        } catch (error) {
+            console.error("Failed to delete comment:", error);
+        }
+    }
+
     const tags = Array.isArray(streamData?.selectedTags)
         ? streamData.selectedTags.join(", ")
         : typeof streamData?.selectedTags === "string"
@@ -125,7 +147,7 @@ export default function LiveView({ isLive }: LiveViewProps) {
     ];
 
     return (
-        <div className="grid min-h-0 gap-3 grid-cols-[0.9fr_1.5fr_0.9fr]">
+        <div className="grid min-h-0 gap-3 grid-cols-1 lg:grid-cols-[0.9fr_1.5fr_0.9fr]">
             <section className="min-h-0 rounded-[10px] border border-white/10 bg-white/6 p-5 shadow-2xl shadow-black/25 backdrop-blur-xl overflow-y-auto scroll-black">
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-col flex-wrap gap-4">
@@ -155,14 +177,22 @@ export default function LiveView({ isLive }: LiveViewProps) {
                     {comments.map((comment) => (
                         <div
                             key={comment.id || `${comment.name}-${comment.time}-${comment.text}`}
-                            className="rounded-2xl px-2 py-1 transition"
+                            className="group flex items-center justify-between gap-3 rounded-2xl px-2 py-1 transition"
                         >
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="text-sm text-white">
-                                    <span className="text-xs text-white/60 pr-2">{comment.time} </span>
-                                    <span>{comment.name}</span> : {comment.text}
-                                </span>
-                            </div>
+                            <span className="min-w-0 truncate text-sm text-white">
+                                <span className="text-xs text-white/60 pr-2">{comment.time} </span>
+                                <span>{comment.name}</span> : {comment.text}
+                            </span>
+                            {comment.id && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleDeleteComment(comment.id)}
+                                    className="shrink-0 rounded-full p-1 text-slate-500 opacity-0 transition hover:text-rose-300 group-hover:opacity-100"
+                                    aria-label="Delete comment"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
                         </div>
                     ))}
                     <form
@@ -189,21 +219,26 @@ export default function LiveView({ isLive }: LiveViewProps) {
             </section>
 
             <section className="grid min-h-0 gap-5 xl:grid-rows-[1fr_1fr] overflow-y-auto scroll-black">
-                <section className="rounded-[10px] border border-white/10 bg-white/6 p-5 shadow-2xl shadow-black/25 backdrop-blur-xl flex flex-col items-center justify-center min-h-[200px]">
+                <section className="rounded-[10px] border border-white/10 bg-white/6 p-5 shadow-2xl shadow-black/25 backdrop-blur-xl flex flex-col items-stretch justify-start min-h-[200px]">
                     <div className="flex items-center pb-1 w-full border-b border-white/10 mb-4">
                         <p className="text-xs uppercase tracking-[0.25em] text-cyan-200/70">
                             Activity
                         </p>
                     </div>
-                    <p className="text-slate-400 text-sm font-medium">Coming Soon</p>
+                    <ActivityFeedPanel items={activityItems} isLive={isLive} />
                 </section>
-                <div className="rounded-[10px] border border-white/10 bg-white/6 p-5 shadow-2xl shadow-black/25 backdrop-blur-xl flex flex-col items-center justify-center min-h-[200px]">
+                <div className="rounded-[10px] border border-white/10 bg-white/6 p-5 shadow-2xl shadow-black/25 backdrop-blur-xl flex flex-col items-stretch justify-start min-h-[200px]">
                     <div className="flex items-center justify-between pb-1 w-full border-b border-white/10 mb-4">
                         <p className="text-sm uppercase tracking-[0.15em] text-cyan-200/70">
                             Stats
                         </p>
                     </div>
-                    <p className="text-slate-400 text-sm font-medium">Coming Soon</p>
+                    <StatsPanel
+                        overview={overview}
+                        loading={statsLoading}
+                        error={statsError}
+                        currentViewerCount={liveViewerCount}
+                    />
                 </div>
             </section>
         </div>

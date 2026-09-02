@@ -1,5 +1,6 @@
 
 import type { LivestreamItem } from "@/types/livestream-types";
+import { DonationCard } from "@/components/home/donation-card";
 
 type AboutCardProps = {
   stream: LivestreamItem | null;
@@ -25,6 +26,10 @@ export default function AboutCard({ stream }: AboutCardProps) {
             {fallbackText(stream?.sessionDescription)}
           </p>
         </div>
+      </div>
+
+      <div className="mt-4 sm:mt-5">
+        <DonationCard stream={stream} />
       </div>
 
       <div className="mt-4 border-t border-white/10 pt-4 sm:mt-5">

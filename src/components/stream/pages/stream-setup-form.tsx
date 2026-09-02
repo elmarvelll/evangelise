@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { christianTags, StreamSetupValues } from "@/components/stream/utils/types";
 import { SessionCard } from "@/components/stream/session-card";
 import { TagsDropdown } from "@/components/stream/tags-dropdown";
+import { CategoryGenreCard } from "@/components/stream/category-genre-card";
+import { DonationSetupCard } from "@/components/stream/donation-setup-card";
 import { InteractionsCard } from "@/components/stream/interactions-card";
 import {
   isStreamSetupComplete,
@@ -18,7 +20,13 @@ const initialValues: StreamSetupValues = {
   sessionName: "",
   sessionDescription: "",
   selectedTags: [],
+  category: "",
+  genre: "",
   interactionsEnabled: true,
+  donationEnabled: false,
+  donationBankName: "",
+  donationAccountName: "",
+  donationAccountNumber: "",
 };
 
 export function StreamSetupForm() {
@@ -36,8 +44,18 @@ export function StreamSetupForm() {
       sessionDescription:
         typeof draft.sessionDescription === "string" ? draft.sessionDescription : "",
       selectedTags: Array.isArray(draft.selectedTags) ? draft.selectedTags : [],
+      category: typeof draft.category === "string" ? draft.category : "",
+      genre: typeof draft.genre === "string" ? draft.genre : "",
       interactionsEnabled:
         typeof draft.interactionsEnabled === "boolean" ? draft.interactionsEnabled : true,
+      donationEnabled:
+        typeof draft.donationEnabled === "boolean" ? draft.donationEnabled : false,
+      donationBankName:
+        typeof draft.donationBankName === "string" ? draft.donationBankName : "",
+      donationAccountName:
+        typeof draft.donationAccountName === "string" ? draft.donationAccountName : "",
+      donationAccountNumber:
+        typeof draft.donationAccountNumber === "string" ? draft.donationAccountNumber : "",
     };
   });
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -66,7 +84,13 @@ export function StreamSetupForm() {
     });
   };
 
-  const canGoToDashboard = isStreamSetupComplete(values);
+  const donationIncomplete =
+    values.donationEnabled &&
+    (!values.donationBankName.trim() ||
+      !values.donationAccountName.trim() ||
+      !values.donationAccountNumber.trim());
+
+  const canGoToDashboard = isStreamSetupComplete(values) && !donationIncomplete;
 
   const handleGoToDashboard = () => {
     if (!canGoToDashboard) {
@@ -89,6 +113,13 @@ export function StreamSetupForm() {
         }
       />
 
+      <CategoryGenreCard
+        category={values.category}
+        genre={values.genre}
+        onCategoryChange={(category) => setValues((current) => ({ ...current, category }))}
+        onGenreChange={(genre) => setValues((current) => ({ ...current, genre }))}
+      />
+
       <TagsDropdown
         availableTags={christianTags}
         selectedTags={values.selectedTags}
@@ -103,6 +134,25 @@ export function StreamSetupForm() {
         enabled={values.interactionsEnabled}
         onToggle={(interactionsEnabled) =>
           setValues((current) => ({ ...current, interactionsEnabled }))
+        }
+      />
+
+      <DonationSetupCard
+        enabled={values.donationEnabled}
+        bankName={values.donationBankName}
+        accountName={values.donationAccountName}
+        accountNumber={values.donationAccountNumber}
+        onToggle={(donationEnabled) =>
+          setValues((current) => ({ ...current, donationEnabled }))
+        }
+        onBankNameChange={(donationBankName) =>
+          setValues((current) => ({ ...current, donationBankName }))
+        }
+        onAccountNameChange={(donationAccountName) =>
+          setValues((current) => ({ ...current, donationAccountName }))
+        }
+        onAccountNumberChange={(donationAccountNumber) =>
+          setValues((current) => ({ ...current, donationAccountNumber }))
         }
       />
 

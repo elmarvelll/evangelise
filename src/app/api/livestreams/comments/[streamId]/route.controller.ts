@@ -1,7 +1,7 @@
-import { badRequest, json, notFound, serverError, unauthorized } from "@/lib/http";
+import { badRequest, json, notFound, serverError, tooManyRequests, unauthorized } from "@/lib/http";
 import { getCurrentSession } from "@/lib/session";
 import { createComment, listCommentsForStream } from "@/services/comment.service";
-import { NotFoundError, ValidationError } from "@/services/errors";
+import { NotFoundError, RateLimitError, ValidationError } from "@/services/errors";
 
 interface RouteParams {
   params: Promise<{
@@ -50,6 +50,10 @@ export async function createCommentController(request: Request, { params }: Rout
 
     if (error instanceof NotFoundError) {
       return notFound(error.message);
+    }
+
+    if (error instanceof RateLimitError) {
+      return tooManyRequests(error.message);
     }
 
     console.error("Create comment error:", error);

@@ -14,9 +14,15 @@ export async function createBroadcastSession(
     sessionName?: unknown;
     sessionDescription?: unknown;
     selectedTags?: unknown;
+    category?: unknown;
+    genre?: unknown;
     interactionsEnabled?: unknown;
     streamMode?: unknown;
     scheduleDate?: unknown;
+    donationEnabled?: unknown;
+    donationBankName?: unknown;
+    donationAccountName?: unknown;
+    donationAccountNumber?: unknown;
   },
   sessionUser: User
 ) {

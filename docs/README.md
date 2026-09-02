@@ -14,7 +14,7 @@ room (via realtime data messages).
 | API routes (HTTP entry points) | [src/app/api/**/route.ts](../src/app/api/) | Thin handlers that hand each request to a controller |
 | Route controllers | `route.controller.ts`, colocated next to each `route.ts` | Auth checks, request parsing/validation, calling services, shaping the HTTP response |
 | Services (business logic) | [src/services/](../src/services/) | Domain rules, database writes/reads, calling LiveKit |
-| Database layer | [prisma/schema.prisma](../prisma/schema.prisma), [src/lib/prisma.ts](../src/lib/prisma.ts) | MySQL/MariaDB via Prisma |
+| Database layer | [prisma/schema.prisma](../prisma/schema.prisma), [src/lib/prisma.ts](../src/lib/prisma.ts) | PostgreSQL (Supabase) via Prisma |
 | Authentication | [src/lib/auth.ts](../src/lib/auth.ts), [src/lib/session.ts](../src/lib/session.ts) | NextAuth (credentials + Google), JWT sessions |
 | External integrations | [src/services/livekit.service/](../src/services/livekit.service/) | LiveKit (video/audio SFU) — tokens, room lifecycle, webhooks |
 | Route protection | [src/proxy.ts](../src/proxy.ts) | This Next.js version's renamed `middleware.ts` — gates `/dashboard`, `/profile`, `/orders`, `/stream/*` behind login |
@@ -62,3 +62,7 @@ src/
 - [flows/README.md](flows/README.md) — step-by-step major workflows.
 - [authentication.md](authentication.md) — NextAuth setup and session shape.
 - [integrations.md](integrations.md) — LiveKit and other external services.
+- [livestream/README.md](livestream/README.md) — categories/genres, search,
+  followers, realtime activity, viewer stats, donations, moderation.
+- [decisions/livestream-decisions.md](decisions/livestream-decisions.md) —
+  why each of those was built the way it was.

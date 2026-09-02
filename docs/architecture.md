@@ -7,7 +7,9 @@
   `middleware.ts` is renamed to [`src/proxy.ts`](../src/proxy.ts). See
   `node_modules/next/dist/docs/` for the version actually installed before
   assuming a convention.
-- **Database**: MySQL/MariaDB via Prisma (`@prisma/adapter-mariadb`).
+- **Database**: PostgreSQL (Supabase) via Prisma (`@prisma/adapter-pg`). Was
+  MySQL/MariaDB (`@prisma/adapter-mariadb`) until this was switched over —
+  see [database/schema.md](database/schema.md).
 - **Auth**: NextAuth v4 — Credentials provider (email/password) + Google OAuth,
   JWT sessions.
 - **Realtime video**: LiveKit (SFU) via `livekit-server-sdk` (server) and
@@ -126,6 +128,13 @@ mistaken for new bugs, and so they're easy to find when someone picks them up.
    change made outside of the restructuring itself, and it was necessary for
    the code to type-check and build at all.
 5. **`src/lib/mysql.ts` was dead code** — a hand-rolled `mysql2/promise` pool
-   helper with zero importers anywhere in the app (Prisma, via
-   `@prisma/adapter-mariadb`, is the only database client actually used).
+   helper with zero importers anywhere in the app (Prisma was, and remains,
+   the only database client actually used — via `@prisma/adapter-mariadb`
+   at the time, now `@prisma/adapter-pg` after the Postgres switch below).
    Deleted as part of this refactor.
+6. **Database provider switched from MySQL to PostgreSQL** (Supabase),
+   after the original audit above. `prisma/schema.prisma`'s datasource,
+   `src/lib/prisma.ts`'s adapter, and `package.json`'s dependencies were
+   all updated together; see [database/schema.md](database/schema.md) for
+   the one schema change the switch required (a duplicate constraint name
+   that MySQL allowed but Postgres doesn't).

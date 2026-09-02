@@ -10,7 +10,9 @@ export interface LiveKitTokenResponse {
 export const streamSetupDraftKey = "evangeli3e:stream-setup-draft";
 
 export function isStreamSetupComplete(
-  values: Partial<Pick<StreamSetupValues, "sessionName" | "sessionDescription" | "selectedTags">>,
+  values: Partial<
+    Pick<StreamSetupValues, "sessionName" | "sessionDescription" | "selectedTags" | "category" | "genre">
+  >,
 ) {
   return (
     typeof values.sessionName === "string" &&
@@ -18,7 +20,11 @@ export function isStreamSetupComplete(
     typeof values.sessionDescription === "string" &&
     values.sessionDescription.trim().length > 0 &&
     Array.isArray(values.selectedTags) &&
-    values.selectedTags.length > 0
+    values.selectedTags.length > 0 &&
+    typeof values.category === "string" &&
+    values.category.length > 0 &&
+    typeof values.genre === "string" &&
+    values.genre.length > 0
   );
 }
 

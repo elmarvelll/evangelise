@@ -1,4 +1,6 @@
 import type { LivestreamItem } from "@/types/livestream-types";
+import { getCategoryLabel, getGenreLabel } from "@/lib/stream-taxonomy";
+import { FollowButton } from "@/components/home/follow-button";
 
 type TitleCardProps = {
   stream: LivestreamItem | null;
@@ -20,8 +22,8 @@ export default function TitleCard({ stream }: TitleCardProps) {
 
   return (
     <article className="px-4 sm:px-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-col justify-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-col justify-center">
           <h3 className="mt-1 text-xl font-semibold tracking-tight text-white sm:text-2xl">
             {fallbackText(stream?.sessionName)}
           </h3>
@@ -32,8 +34,23 @@ export default function TitleCard({ stream }: TitleCardProps) {
             {fallbackText(stream?.sessionDescription)}
           </p>
         </div>
+
+        <div className="shrink-0">
+          <FollowButton streamerId={stream?.userId ?? null} />
+        </div>
       </div>
+
       <div className="mt-4 flex flex-wrap gap-2 sm:mt-5">
+        {stream && (
+          <>
+            <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-cyan-100">
+              {getCategoryLabel(stream.category)}
+            </span>
+            <span className="rounded-full border border-fuchsia-400/20 bg-fuchsia-400/10 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-fuchsia-100">
+              {getGenreLabel(stream.genre)}
+            </span>
+          </>
+        )}
         {tags.map((tag) => (
           <span
             key={tag}

@@ -5,7 +5,6 @@ import { signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import { CircleUserRound, Search as SearchIcon } from "lucide-react";
 import { SearchBar, SearchResult } from "./Search";
-import { SERMON_TOPIC_FILTERS } from "./lib/sermontags";
 import { useLiveStream } from "./Context/Home_context";
 
 type SessionUser = {
@@ -93,9 +92,7 @@ export function Navbar() {
 
           <div className="hidden w-full min-w-[260px] max-w-md md:block">
               <SearchBar
-              placeholder = "Search users, videos, comments"
-              filters = {SERMON_TOPIC_FILTERS}
-              endpoint = "/search"
+              placeholder = "Search livestreams"
               debounceMs = {300}
               onResultSelect = {(stream:SearchResult) => setSelectedStreamId(stream.id)}
               // className = "w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
@@ -174,9 +171,7 @@ export function Navbar() {
       {mobileSearchOpen && (
         <div className="border-t border-white/10 px-3 pb-3 pt-3 md:hidden">
           <SearchBar
-            placeholder="Search users, videos, comments"
-            filters={SERMON_TOPIC_FILTERS}
-            endpoint="/search"
+            placeholder="Search livestreams"
             debounceMs={300}
             onResultSelect={(stream: SearchResult) => {
               setSelectedStreamId(stream.id);

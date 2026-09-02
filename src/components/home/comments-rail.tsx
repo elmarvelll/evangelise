@@ -2,14 +2,17 @@
 
 import type { CSSProperties } from "react";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronRight, Loader2, MessageSquareText, SendHorizontal } from "lucide-react";
+import { ChevronRight, Loader2, MessageSquareText, SendHorizontal, Trash2 } from "lucide-react";
 import { useLiveStream } from "./Context/Home_context";
 import { useCommentListener } from "./utils/comment_Setup";
 import { useSendComment } from "./utils/comment_send";
+import api from "@/lib/axios";
 
 export type Comment = {
   id: string;
+  userId?: string;
   name: string;
   time: string;
   text: string;
@@ -18,8 +21,20 @@ export type Comment = {
 export function CommentsRail({ loading }: { loading: boolean }) {
   const [collapsed, setCollapsed] = useState(false);
   useCommentListener();
-  const { selectedStreamId, comments } = useLiveStream();
+  const { selectedStreamId, comments, setComments } = useLiveStream();
   const { commentText, handleSubmit, setText } = useSendComment(selectedStreamId);
+  const { data: session } = useSession();
+
+  async function handleDeleteComment(commentId: string) {
+    if (!selectedStreamId) return;
+
+    try {
+      await api.delete(`/livestreams/comments/${selectedStreamId}/${commentId}`);
+      setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+    } catch (error) {
+      console.error("Failed to delete comment:", error);
+    }
+  }
 
   // Comment history is already loaded (and kept in sync with the selected
   // stream) by LiveStreamProvider's own effect in Home_context.tsx. This
@@ -101,14 +116,22 @@ export function CommentsRail({ loading }: { loading: boolean }) {
                   comments.map((comment) => (
                     <div
                       key={comment.id || `${comment.name}-${comment.time}-${comment.text}`}
-                      className="rounded-2xl px-2 py-1 transition"
+                      className="group flex items-center justify-between gap-2 rounded-2xl px-2 py-1 transition"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-semibold text-white">
-                          <span className="text-xs font-normal text-white/60 pr-1">{comment.time}</span>
-                          <span>{comment.name}</span> : {comment.text}
-                        </span>
-                      </div>
+                      <span className="min-w-0 truncate text-sm font-semibold text-white">
+                        <span className="text-xs font-normal text-white/60 pr-1">{comment.time}</span>
+                        <span>{comment.name}</span> : {comment.text}
+                      </span>
+                      {comment.userId && session?.user?.id === comment.userId && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className="shrink-0 rounded-full p-1 text-slate-500 opacity-0 transition hover:text-rose-300 group-hover:opacity-100"
+                          aria-label="Delete comment"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   ))
                 )}

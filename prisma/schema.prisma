@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
 }
 
 model livestream {
@@ -11,8 +11,8 @@ model livestream {
   sessionName         String
   sessionDescription  String
   selectedTags        Json
-  category            StreamCategory
-  genre               StreamGenre
+  category            StreamCategory    @default(Other)
+  genre               StreamGenre       @default(Other)
   thumbnailUrl        String?
   interactionsEnabled Boolean           @default(true)
   status              livestream_status
@@ -33,7 +33,7 @@ model livestream {
   comments            Comment[]
 
 
-  @@index([userId], map: "Livestream_userId_fkey")
+  @@index([userId])
   @@index([category])
   @@index([genre])
   @@index([startedAt])

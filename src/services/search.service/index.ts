@@ -1,1 +1,1 @@
-export { searchLivestreams } from "./search-livestreams";
+export { searchLivestreams, type SearchLivestreamsParams } from "./search-livestreams";

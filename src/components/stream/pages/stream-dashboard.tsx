@@ -96,8 +96,8 @@ export function StreamDashboard() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-2 shrink-0 flex items-center justify-between gap-4">
-        <div className="flex gap-2">
+      <div className="mb-2 shrink-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex flex-wrap gap-2">
           <Link
             href="/stream/new"
             className="w-fit rounded-full border border-white/10 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 transition hover:border-cyan-400/30 hover:text-cyan-100"

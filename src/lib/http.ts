@@ -32,6 +32,10 @@ export function conflict(message: string) {
   return errorResponse(message, 409);
 }
 
+export function tooManyRequests(message: string) {
+  return errorResponse(message, 429);
+}
+
 export function serverError(message: string) {
   return errorResponse(message, 500);
 }

@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { endLivestream } from "@/services/livestream.service";
+import { publishActivity } from "@/lib/activity-bus";
+import { getLiveViewerCount } from "@/services/viewer-stats.service";
 
 const RECONNECT_GRACE_PERIOD = 30_000; // 30 seconds
 
@@ -29,6 +31,9 @@ export async function handleParticipantLeft(roomName: string, participantIdentit
 
   if (livestream.id !== participantIdentity) {
     console.log("👤 Viewer left. Stream remains LIVE.");
+
+    const currentViewerCount = await getLiveViewerCount(roomName, livestream.userId);
+    publishActivity(livestream.userId, { type: "viewer_left", viewerCount: currentViewerCount });
     return;
   }
 

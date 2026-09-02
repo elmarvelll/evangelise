@@ -1,9 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import { NotFoundError, ValidationError } from "@/services/errors";
+import { NotFoundError, RateLimitError, ValidationError } from "@/services/errors";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const MAX_COMMENT_LENGTH = 500;
+const COMMENT_RATE_LIMIT = 5;
+const COMMENT_RATE_WINDOW_MS = 10_000; // 5 comments per 10 seconds per user
 
 export async function createComment(livestreamId: string, userId: string, rawText: string) {
+  if (!checkRateLimit(`comment:${userId}`, COMMENT_RATE_LIMIT, COMMENT_RATE_WINDOW_MS)) {
+    throw new RateLimitError("You're commenting too quickly. Please slow down.");
+  }
+
   const text = rawText?.trim();
 
   if (!text) {
@@ -33,6 +40,7 @@ export async function createComment(livestreamId: string, userId: string, rawTex
 
   return {
     id: comment.id,
+    userId: comment.userId,
     name: `${comment.user.firstName} ${comment.user.lastName}`.trim(),
     text: comment.text,
     time: "Just now",

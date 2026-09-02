@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 function getDatabaseUrl() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -12,16 +12,7 @@ function getDatabaseUrl() {
 }
 
 function createAdapter() {
-  const url = new URL(getDatabaseUrl());
-
-  return new PrismaMariaDb({
-    host: url.hostname,
-    user: decodeURIComponent(url.username),
-    password: decodeURIComponent(url.password),
-    database: url.pathname.replace(/^\/+/, ""),
-    connectionLimit: 10,
-    connectTimeout: 10_000,
-  });
+  return new PrismaPg({ connectionString: getDatabaseUrl() });
 }
 
 const globalForPrisma = globalThis as unknown as {

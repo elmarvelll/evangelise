@@ -1,8 +1,11 @@
 import type { User } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { NotFoundError, ValidationError } from "@/services/errors";
+import { publishActivity } from "@/lib/activity-bus";
+import { isStreamCategory, isStreamGenre } from "@/lib/stream-taxonomy";
 import { isStreamPayload, type StreamPayload } from "./is-stream-payload";
 import { isStringArray } from "./is-string-array";
+import { parseDonationInfo } from "./validate-donation-info";
 
 /**
  * Validates a stream-setup payload and creates the livestream row for it.
@@ -39,9 +42,19 @@ export async function createLivestream(body: StreamPayload, sessionUser: User) {
     throw new ValidationError("You can only choose up to 3 tags.");
   }
 
+  if (!isStreamCategory(body.category)) {
+    throw new ValidationError("Please choose a valid category.");
+  }
+
+  if (!isStreamGenre(body.genre)) {
+    throw new ValidationError("Please choose a valid genre.");
+  }
+
   if (streamMode === "schedule" && (!scheduleDate || Number.isNaN(scheduleDate.getTime()))) {
     throw new ValidationError("Please choose a valid schedule date.");
   }
+
+  const donationInfo = parseDonationInfo(body);
 
   const user = await prisma.user.findUnique({
     where: { email: sessionUser.email?.toUpperCase() },
@@ -56,16 +69,24 @@ export async function createLivestream(body: StreamPayload, sessionUser: User) {
       sessionName,
       sessionDescription,
       selectedTags,
+      category: body.category,
+      genre: body.genre,
       interactionsEnabled,
       status: "LIVE",
       scheduleDate: streamMode === "schedule" ? scheduleDate : null,
+      startedAt: streamMode === "schedule" ? null : new Date(),
       userId: user.id,
       endedAt: null,
+      ...donationInfo,
     },
     include: {
       user: true,
     },
   });
+
+  if (livestream.status === "LIVE") {
+    publishActivity(user.id, { type: "stream_started", livestreamId: livestream.id });
+  }
 
   return livestream;
 }
